@@ -4,7 +4,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.alibaba.otter.canal.common.CanalException;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.exception.ZkException;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
@@ -60,7 +59,6 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
                 }
 
                 if (!runningData.isActive() && isMine(runningData.getAddress())) { // 说明出现了主动释放的操作，并且本机之前是active
-                    release = true;
                     releaseRunning();// 彻底释放mainstem
                 }
 
@@ -75,12 +73,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
                     initRunning();
                 } else {
                     // 否则就是等待delayTime，避免因网络瞬端或者zk异常，导致出现频繁的切换操作
-                    delayExector.schedule(new Runnable() {
-
-                        public void run() {
-                            initRunning();
-                        }
-                    }, delayTime, TimeUnit.SECONDS);
+                    delayExector.schedule(() -> initRunning(), delayTime, TimeUnit.SECONDS);
                 }
             }
 
@@ -113,11 +106,13 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
 
     }
 
-    public void release() {
+    public boolean release() {
         if (zkClient != null) {
             releaseRunning(); // 尝试一下release
+            return true;
         } else {
-            processActiveExit(); // 没有zk，直接启动
+            processActiveExit(); // 没有zk，直接退出
+            return false;
         }
     }
 
@@ -149,6 +144,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             activeData = serverData;
             processActiveEnter();// 触发一下事件
             mutex.set(true);
+            release = false;
         } catch (ZkNodeExistsException e) {
             bytes = zkClient.readData(path, true);
             if (bytes == null) {// 如果不存在节点，立即尝试一次
@@ -185,8 +181,8 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             boolean result = isMine(activeData.getAddress());
             if (!result) {
                 logger.warn("canal is running in node[{}] , but not in node[{}]",
-                    activeData.getCid(),
-                    serverData.getCid());
+                    activeData.getAddress(),
+                    serverData.getAddress());
             }
             return result;
         } catch (ZkNoNodeException e) {
@@ -204,6 +200,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
 
     private boolean releaseRunning() {
         if (check()) {
+            release = true;
             String path = ZookeeperPathUtils.getDestinationServerRunning(destination);
             zkClient.delete(path);
             mutex.set(false);

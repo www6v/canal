@@ -6,6 +6,7 @@ import java.util.Date;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
@@ -17,7 +18,7 @@ import com.alibaba.otter.canal.protocol.position.EntryPosition;
 import com.alibaba.otter.canal.protocol.position.LogIdentity;
 import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.alibaba.otter.canal.protocol.position.PositionRange;
-
+@Ignore
 public class MetaLogPositionManagerTest extends AbstractLogPositionManagerTest {
 
     private static final String MYSQL_ADDRESS = "127.0.0.1";
@@ -81,6 +82,6 @@ public class MetaLogPositionManagerTest extends AbstractLogPositionManagerTest {
         LogPosition end = new LogPosition();
         end.setIdentity(new LogIdentity(new InetSocketAddress(MYSQL_ADDRESS, 3306), 1234L));
         end.setPostion(new EntryPosition("mysql-bin.000000" + (number + 1), 106L, (new Date().getTime()) + 1000 * 1000L));
-        return new PositionRange<LogPosition>(start, end);
+        return new PositionRange<>(start, end);
     }
 }
